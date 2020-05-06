@@ -1,0 +1,8 @@
+__ignore__
+_background_
+octopus_wiener
+tomato
+broccoli
+flower_carrot
+rolled_egg
+fried_chicken
