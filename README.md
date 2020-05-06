@@ -8,6 +8,26 @@
 [add_by_tanemoブランチのコミット参照](https://github.com/MiyabiTane/jsk_model_tools/tree/add_by_tanemoto)
 
 ## Coral TPU を使う
+### gazebo内で使うなら
+
+hironxjskのgazeboを立ち上げる。例えば
+```
+source ~/ros/jsk_hiro_ws/devel/setup.bash
+roslaunch hironx_tutorial hiro_lunch_box.launch 
+```
+
+Coralの認識ノードを立ち上げる
+```
+source ~/coral_ws/devel/setup.bash
+roslaunch coral_usb edgetpu_object_detector.launch INPUT_IMAGE:=/head_camera/rgb/image_raw
+```
+
+結果を見てみる
+
+```
+rosrun image_view image_view image:=/edgetpu_object_detector/output/image
+```
+
 ### Coral TPUのインストール を行う
 
 https://github.com/knorth55/coral_usb_ros#install-the-edge-tpu-runtime をみてCoral TPUをインストールする
