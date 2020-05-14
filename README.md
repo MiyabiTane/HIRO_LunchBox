@@ -8,7 +8,7 @@
 [add_by_tanemoブランチのコミット参照](https://github.com/MiyabiTane/jsk_model_tools/tree/add_by_tanemoto)
 
 ## Coral TPU を使う
-### gazebo内で使うなら
+### gazebo内で使う
 
 hironxjskのgazeboを立ち上げる。例えば
 ```
@@ -28,6 +28,68 @@ roslaunch coral_usb edgetpu_object_detector.launch INPUT_IMAGE:=/head_camera/rgb
 rosrun image_view image_view image:=/edgetpu_object_detector/output/image
 ```
 
+閾値の調節
+```
+ rosrun rqt_reconfigure rqt_reconfigure
+```
+
+## Coralに新しいモデルを学習させる<br>
+
+### [アノテーションしてデータセットを作る](https://github.com/MiyabiTane/HIRO_LunchBox/tree/master/labelme)<br>
+
+### Coral用に学習する<br>
+
+voc変換の結果を使って以下のようなデータセットをつくる。
+```
+lunch_box_dataset
+|-- train  # train dataset
+|   |-- JPEGImages
+|   |-- SegmentationClass
+|   |-- SegmentationClassPNG
+|   |-- SegmentationClassVisualization
+|   |-- SegmentationObject
+|   |-- SegmentationObjectPNG
+|   |-- SegmentationObjectVisualization
+|   `-- class_names.txt
+`-- test   # test dataset
+    |-- JPEGImages
+    |-- SegmentationClass
+    |-- SegmentationClassPNG
+    |-- SegmentationClassVisualization
+    |-- SegmentationObject
+    |-- SegmentationObjectPNG
+    |-- SegmentationObjectVisualization
+    `-- class_names.txt
+```
+
+学習は自分のPCではできないのでdlboxにアクセスして行う。<br>
+
+ローカルから
+```
+scp -r lunch_box_dataset/ tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/coral_learn
+scp train_edgetpu_detection.sh tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/coral_learn
+```
+のようにしてデータとtrain_edgetpu_detection.shをdlboxに渡してから
+```
+ssh dlbox1.jsk.imi.i.u-tokyo.ac.jp
+cd coral_learn
+bash ./train_edgetpu_detection.sh ./lunch_box_dataset/
+```
+とすると20200514-171839-lunch_box_datasetのようなディレクトリが生成されるので
+```
+scp -r tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/20200514-171839-lunch_box_dataset .
+```
+のようにしてローカルに持ってくる。<br>
+
+### 学習済みモデルを試してみる<br>
+
+20200514-171839-lunch_box_dataset/learn/models/にあるoutput_tflite_graph_edgetpu.tflite、labels.txtを使う。launchファイル内で以下のようにしてパスを通す。（edgetpu_food_detector.launch参照）<br>
+```
+<arg name="model_file" default="$(find coral_usb)/models/output_tflite_graph_edgetpu.tflite"/>
+<arg name="label_file" default="$(find coral_usb)/models/labels.txt"/>
+```
+
+## ＜参考＞Coral TPUのセットアップ<br>
 ### Coral TPUのインストール を行う
 
 https://github.com/knorth55/coral_usb_ros#install-the-edge-tpu-runtime をみてCoral TPUをインストールする
@@ -119,7 +181,3 @@ rosrun image_view image_view image:=/edgetpu_object_detector/output/image
 
 edgetpu_object_detectorのscore_threshで物体表示の閾値を変更することができる。
 
-
-## 新しいモデルを学習させる
-
-[詳細はこちら](https://github.com/MiyabiTane/HIRO_LunchBox/tree/master/labelme)
