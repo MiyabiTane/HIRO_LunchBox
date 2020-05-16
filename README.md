@@ -67,19 +67,39 @@ lunch_box_dataset
 ローカルから
 ```
 scp -r lunch_box_dataset/ tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/coral_learn
-scp train_edgetpu_detection.sh tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/coral_learn
 ```
 のようにしてデータとtrain_edgetpu_detection.shをdlboxに渡してから
 ```
 ssh dlbox1.jsk.imi.i.u-tokyo.ac.jp
 cd coral_learn
+wget https://gist.githubusercontent.com/k-okada/bb65691bd58a6175b8f5f1c2a3c4caed/raw/0febe43740776051c2d4df6a11feaade9288320c/train_edgetpu_detection.sh
 bash ./train_edgetpu_detection.sh ./lunch_box_dataset/
 ```
-とすると20200514-171839-lunch_box_datasetのようなディレクトリが生成されるので
+とすると20200514-171839-lunch_box_datasetのようなフォルダがホームディレクトリに生成されるので
 ```
 scp -r tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/20200514-171839-lunch_box_dataset .
 ```
 のようにしてローカルに持ってくる。<br>
+
+### 学習結果を見てみる
+```
+ssh dlbox1.jsk.imi.i.u-tokyo.ac.jp
+bash ./run.sh 20200514-171839-lunch_box_dataset/ tensorboard
+```
+として、例えばポート番号が6006なら（デフォルト）、http://dlbox1.jsk.imi.i.u-tokyo.ac.jp:6006/ をローカルのブラウザで開く。mAP, mARが１に近いほど良いモデルである。また、imagesでテスト画像に対するboxの値を見ることができる。ただし、テスト画像にも偏りがあるということを忘れずに！<br>
+
+<img width="400" src="./img_README/mAR.png"><img width="400" src="./img_README/box.png"><br>
+
+できない時は以下を試してみる
+```
+wget https://raw.githubusercontent.com/k-okada/coral_usb_ros/add_docker/docker/run.sh -O run.sh
+```
+
+また、生成されたデータは権限がないと動かしたり消したりすることができない。
+```
+bash ./run.sh 20200514-171839-lunch_box_dataset/
+```
+とするとDockerの中に入ることができて、rm, mvなどの操作をすることができる。<br>
 
 ### 学習済みモデルを試してみる<br>
 
