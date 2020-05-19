@@ -70,7 +70,7 @@ scp -r lunch_box_dataset/ tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/coral_learn
 ```
 のようにしてデータとtrain_edgetpu_detection.shをdlboxに渡してから
 ```
-ssh dlbox1.jsk.imi.i.u-tokyo.ac.jp
+ssh tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp
 cd coral_learn
 wget https://gist.githubusercontent.com/k-okada/bb65691bd58a6175b8f5f1c2a3c4caed/raw/0febe43740776051c2d4df6a11feaade9288320c/train_edgetpu_detection.sh
 bash ./train_edgetpu_detection.sh ./lunch_box_dataset/
@@ -80,6 +80,9 @@ bash ./train_edgetpu_detection.sh ./lunch_box_dataset/
 scp -r tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/20200514-171839-lunch_box_dataset .
 ```
 のようにしてローカルに持ってくる。<br>
+
+学習の引数を変えたい時は[ここ](https://github.com/k-okada/coral_usb_ros/blob/add_docker/docker/scripts/train.sh)を参照する。<br>
+
 
 ### 学習結果を見てみる
 ```
@@ -100,6 +103,7 @@ wget https://raw.githubusercontent.com/k-okada/coral_usb_ros/add_docker/docker/r
 bash ./run.sh 20200514-171839-lunch_box_dataset/
 ```
 とするとDockerの中に入ることができて、rm, mvなどの操作をすることができる。<br>
+
 
 ### 学習済みモデルを試してみる<br>
 
