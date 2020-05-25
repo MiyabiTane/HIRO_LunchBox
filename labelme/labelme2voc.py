@@ -15,7 +15,6 @@ import PIL.Image
 
 import labelme
 
-import cv2
 
 
 def main():
