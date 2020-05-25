@@ -15,6 +15,8 @@ import PIL.Image
 
 import labelme
 
+import cv2
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -94,9 +96,11 @@ def main():
                 )
 
             data = json.load(f)
-
+            
             img_file = osp.join(osp.dirname(label_file), data['imagePath'])
-            img = np.asarray(PIL.Image.open(img_file))
+            image_pil = PIL.Image.open(img_file)
+            image_pil = labelme.utils.apply_exif_orientation(image_pil)
+            img = np.asarray(image_pil)
             PIL.Image.fromarray(img).save(out_img_file)
 
             cls, ins = labelme.utils.shapes_to_label(
