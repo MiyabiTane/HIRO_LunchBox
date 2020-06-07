@@ -72,7 +72,7 @@ scp -r lunch_box_dataset/ tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp:~/coral_learn
 ```
 ssh tanemoto@dlbox1.jsk.imi.i.u-tokyo.ac.jp
 cd coral_learn
-wget https://gist.githubusercontent.com/k-okada/bb65691bd58a6175b8f5f1c2a3c4caed/raw/0febe43740776051c2d4df6a11feaade9288320c/train_edgetpu_detection.sh
+wget https://gist.githubusercontent.com/knorth55/e26c9ed5daa489f2411f29aad0830aad/raw/91ae271d58c20542a2d514c9fb08233f7f8d74d2/train_edgetpu_detection.sh
 bash ./train_edgetpu_detection.sh ./lunch_box_dataset/
 ```
 とすると20200514-171839-lunch_box_datasetのようなフォルダがホームディレクトリに生成されるので
