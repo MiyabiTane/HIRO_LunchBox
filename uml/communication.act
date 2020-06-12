@@ -1,0 +1,45 @@
+@startuml
+
+|HIRO|
+
+start
+
+repeat
+:盛り付け完了;
+:「完成しました、どうですか？」;
+    
+    
+if (人による評価) then (「いいね」「美味しそう」)
+    :情報を記憶;
+    stop
+
+else (「うーん」「微妙」「いまいち」)
+    partition 人 {
+    :「緑（色指定）はここ（指差し）の方がいいと思う」;
+    }
+        
+    :「〇〇（色）をここ（指差し）ですか？」;
+    if (正しい) 
+            
+    elseif (場所が違う)
+        repeat
+        partition 人 {
+            :「違うよ、ここだよ」;
+            }
+        :「ここ（指差し）ですか？」;
+        repeat while (間違っている)
+        
+    elseif (色が違う)
+        repeat
+        partition 人{
+            :「違うよ、緑だよ」;
+            }
+        :「△△ですか？」;
+        repeat while (間違っている)
+    endif
+    :情報の記録;
+
+endif
+repeat while (盛り付けやり直し)             
+
+@enduml

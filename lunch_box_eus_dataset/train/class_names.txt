@@ -1,8 +1,0 @@
-_background_
-octopus_wiener
-tomato
-broccoli
-flower_carrot
-rolled_egg
-fried_chicken
-lunch_box
