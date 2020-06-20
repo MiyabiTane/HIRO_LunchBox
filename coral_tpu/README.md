@@ -106,6 +106,10 @@ bash ./run.sh 20200514-171839-lunch_box_dataset/
 ```
 
 ## ＜参考＞Coral TPUのセットアップ<br>
+※以下の説明はmelodic対応です。kineticの場合は
+https://github.com/knorth55/coral_usb_ros
+を参照すること。<br>
+
 ### Coral TPUのインストール を行う
 
 https://github.com/knorth55/coral_usb_ros#install-the-edge-tpu-runtime をみてCoral TPUをインストールする
@@ -161,8 +165,10 @@ python download_models.py
 ### Coral TPUを使うにあたっての事前準備
 
 ```
-python3 -m pip install opencv-python
+python3.6 -m pip install opencv-python
 ```
+python3.6でない可能性もあります。適宜変えてください。<br>
+
 
 ### USBカメラを立ち上げる
 

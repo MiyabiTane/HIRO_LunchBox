@@ -1,0 +1,48 @@
+<launch>
+  <arg name="collect_data" default="true" />
+  <arg name="input_camera" default="camera" />
+  <arg name="output_dir" default="coral" />
+
+  <node name="timer_stow_data_collection"
+        type="data_collection_server.py"
+        output="screen" if="$(arg collect_data)">
+    <rosparam subst_value="true">
+      slop: 1.0
+      method: timer
+      hz: 1.0
+      _save_dir: $(arg output_dir)
+      topics: 
+      - name: /$(arg input_camera)/rgb/image_rect_color/compressed
+      msg_class: sensor_msgs/CompressedImage
+      fname: compressed.png
+      savetype: DepthImage
+      - name: /rosout
+      msg_class: rosgraph_msgs/Log
+      fname: rosout.txt
+      savetype: Text
+      - name: /tf
+      msg_class: tf2_msgs/TFMessage
+      fname: tf.yaml
+      savetype: YAML
+      - name: /tf_static
+      msg_class: tf2_msgs/TFMessage
+      fname: tf_static.yaml
+      savetype: YAML
+      - name: /camera/rgb/camera_info
+      msg_class: sensor_msgs/CameraInfo
+      fname: camera_info.yaml
+      savetype: YAML
+      - name: /$(arg input_camera)/depth_registered/sw_registered/image_rect/compressedDepth
+      msg_class: sensor_msgs/CompressedImage
+      fname: compressedDepth.png
+      savetype: DepthImage
+      - name: /camera/rgb/image_raw
+      msg_class: sensor_msgs/Image
+      fname: image_raw.png
+      savetype: ColorImage
+    </rosparam>
+  </node>
+</launch>
+    
+
+      
