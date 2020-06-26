@@ -1,15 +1,22 @@
 import random
 from copy import deepcopy
-
+import cv2
 import numpy as np
 
 from BL_algorithm import BL_main
 
+#box_list = [[4,2,2], [4,4,4], [4,4,4], [3,3,3], [2,2,3.5], [4,4,4], [4,2,2], [4,4,4], [2,2,3.5], [3,3,3]]
+#box_size = [12,11]
+#test1 ------
 name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato"]
-box_list = [[4,2,2], [4,4,4], [4,4,4], [3,3,3], [2,2,3.5], [4,4,4], [4,2,2], [4,4,4], [2,2,3.5], [3,3,3]]
-box_size = [12,1]
-like_list = [["rolled_egg", "rolled_egg"], ["brocolli", "fried_chiken"], ["tomato", "tomato"]]
-dislike_list = [["octopus_wiener", "fried_chiken"]]
+box_list = [[80,40,40], [70,70,80], [70,70,80], [60,60,60], [40,40,70], [80,80,80], [80,40,40], [80,80,80], [40,40,70], [55,55,60]]
+#test2-----
+#name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato", "rolled_egg", "fried_chiken", "tomato", "octopus_wiener", "brocolli"]
+#box_list = [[50,50,50]] * len(name_list)
+#-----
+box_size = [180,220]
+like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
+dislike_list = [["octopus_wiener", "fried_chiken"], ["brocolli", "tomato"]]
 """
 x: width, y: height
 """
@@ -40,6 +47,8 @@ class StuffFood():
         #print(self.cand_list)
         self.like_list = like_list
         self.dislike_list = dislike_list
+        #for visalize
+        self.name_list = name_list
 
 
     def evaluate(self):
@@ -70,14 +79,20 @@ class StuffFood():
             point += calc_point(self.like_list, stuff_pos, plus_flag = True)
             #if satisfy the dislike condition, point -=1
             point += calc_point(self.dislike_list, stuff_pos, plus_flag = False)
+            #if cannot stuff, point -= 1
+            for i in range(len(stuff_pos)):
+                if stuff_pos[i][0] + self.box_dict[i][0] > self.box_size[0] or stuff_pos[i][1] + self.box_dict[i][1] > self.box_size[1]:
+                    point -= 1
             points.append(point)
+        #for_choose_parameter
+        max_point = max(points)
         points = map(lambda x: x-(min(points)), points)
         if float(sum(points)) == 0:
             points = [1.0/len(points)] * len(points)
         else:
             points = map(lambda x: float(x)/float(sum(points)), points)
         #print(points)
-        return points
+        return points, max_point
 
 
     def partial_crossover(self, parent_1, parent_2):
@@ -102,7 +117,7 @@ class StuffFood():
 
     def generate_next_generation(self):
     #update self.cand_list    
-        points = self.evaluate()
+        points, max_point = self.evaluate()
         copy = deepcopy(self.cand_list)
         for i in range(self.indivisuals//2):
             index_1, index_2 = np.random.choice(len(points), 2, replace = True, p = points)
@@ -128,23 +143,55 @@ class StuffFood():
                 copy[np.where(self.cand_list[index] == values[0])] = values[1]
                 copy[np.where(self.cand_list[index] == values[1])] = values[0]
             self.cand_list[index] = deepcopy(copy)
-
     
+
     def GA_main(self):
         for i in range(self.generation):
-            print(i)
+            #print(i)
             #print(self.cand_list)
             self.generate_next_generation()
             self.mutation()
         #select the one whose point is highest
         print(self.cand_list)
-        points = self.evaluate()
+        points, max_point = self.evaluate()
+        print("max point is", max_point)
         print(self.cand_list[(np.argmax(points))])
         best_stuff = BL_main(self.cand_list[(np.argmax(points))], self.box_dict, self.box_size)
         print(best_stuff)
-        #To Do return center coords
+        #if food overflow, keep the index in cannot_stuff
+        cannot_stuff = []
+        for i in range(len(best_stuff)):
+            if best_stuff[i][0] + self.box_dict[i][0] > self.box_size[0] or best_stuff[i][1] + self.box_dict[i][1] > self.box_size[1]:
+                cannot_stuff += [i]
+            else:
+                best_stuff[i] = (best_stuff[i][0] + self.box_dict[i][0]/2, best_stuff[i][1] + self.box_dict[i][1]/2)
+        print(best_stuff)
+        return best_stuff, cannot_stuff
 
 
-stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, 12, 100)
-stuff.GA_main()       
+    def visualize(self, best_stuff, cannot_stuff, name):
+        down = 300
+        img = np.full((300,300, 3), 200, dtype=np.uint8)
+        cv2.rectangle(img, (0, 0), (self.box_size[0], self.box_size[1]), (0, 0, 0))
+        color_dict = {"tomato": (0,0,255), "rolled_egg": (0,255,255), "octopus_wiener": (255,0,255), "fried_chiken": (0,0,128), "brocolli": (0,128,0)}
+        for i in range(len(best_stuff)):
+            if i in cannot_stuff:
+                point_1 = (300 - self.box_dict[i][0], down)
+                point_2 = (300, down - self.box_dict[i][1])
+                down -= self.box_dict[i][1]
+            else:
+                point_1 = (best_stuff[i][0] - self.box_dict[i][0]//2, best_stuff[i][1] - self.box_dict[i][1]//2)
+                point_2 = (best_stuff[i][0] + self.box_dict[i][0]//2, best_stuff[i][1] + self.box_dict[i][1]//2)
+            color = color_dict[self.name_list[i]]
+            cv2.rectangle(img, point_1, point_2, color, thickness=-1)
+            cv2.rectangle(img, point_1, point_2, (255,255,0))
+        cv2.imwrite(name, img)
 
+
+def test():
+    for i in range(11):
+        stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, 12, i*100)
+        best_stuff, cannot_stuff = stuff.GA_main()       
+        stuff.visualize(best_stuff, cannot_stuff, "test1/" + str(i*100) + ".png")
+
+test()
