@@ -1,26 +1,17 @@
+import rospy
+
 import random
 from copy import deepcopy
-import cv2
 import numpy as np
 
 from BL_algorithm import BL_main
+from jsk_recognition_msgs.msg import Rect
+from jsk_recognition_msgs.msg import RectArray
+from std_msgs.msg import Header
 
-#box_list = [[4,2,2], [4,4,4], [4,4,4], [3,3,3], [2,2,3.5], [4,4,4], [4,2,2], [4,4,4], [2,2,3.5], [3,3,3]]
-#box_size = [12,11]
-#test1 ------
-name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato"]
-box_list = [[80,40,40], [70,70,80], [70,70,80], [60,60,60], [40,40,70], [80,80,80], [80,40,40], [80,80,80], [40,40,70], [55,55,60]]
-#test2-----
-#name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato", "rolled_egg", "fried_chiken", "tomato", "octopus_wiener", "brocolli"]
-#box_list = [[50,50,50]] * len(name_list)
-#-----
-box_size = [180,220]
-like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
-dislike_list = [["octopus_wiener", "fried_chiken"]]
 """
 x: width, y: height
 """
-
 class StuffFood():
 
     def __init__(self, name_list, box_list, box_size, like_list, dislike_list, indivisuals, generation):
@@ -162,14 +153,38 @@ class StuffFood():
         for i in range(len(best_stuff)):
             if best_stuff[i][0] + self.box_dict[i][0] > self.box_size[0] or best_stuff[i][1] + self.box_dict[i][1] > self.box_size[1]:
                 cannot_stuff += [i]
+                best_stuff[i] = (0,0)
             else:
                 best_stuff[i] = (best_stuff[i][0] + self.box_dict[i][0]/2, best_stuff[i][1] + self.box_dict[i][1]/2)
         print(best_stuff)
         return best_stuff, cannot_stuff
 
 
-def test():
+def ROSmain():
+    #To Do: subscribe these informations
+    name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato"]
+    box_list = [[4,2,2], [4,4,4], [4,4,4], [3,3,3], [2,2,3.5], [4,4,4], [4,2,2], [4,4,4], [2,2,3.5], [3,3,3]]
+    box_size = [12,11]
+    #To Do: get these information by talking with HIRO
+    like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
+    dislike_list = [["octopus_wiener", "fried_chiken"]]
+    #calc stuff pos using GA and BL
     stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, 12, 1000)
-    best_stuff, cannot_stuff = stuff.GA_main()       
-       
-test()
+    best_stuff, _ = stuff.GA_main()
+    #publish stuff canter coords and box width and height
+    rospy.init_node("hiro_lunchbox")
+    pub = rospy.Publisher('/stuff_food_pos', RectArray, queue_size = 1)
+    rect_msg = RectArray()
+    for i, stuff_pos in enumerate(best_stuff):
+        rect = Rect(
+            x = stuff_pos[0],
+            y = stuff_pos[1],
+            width = box_list[i][0],
+            height = box_list[i][1],
+        )
+        rect_msg.rects.append(rect)
+    while not rospy.is_shutdown():
+        pub.publish(rect_msg) 
+        rospy.sleep(1.0)
+
+ROSmain()      

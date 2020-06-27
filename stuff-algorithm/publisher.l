@@ -1,0 +1,31 @@
+(setq box_list (list (list 1 2 3) (list 4 5 6) (list 7 8 9)))
+(setq name_list (list "wiener" "egg" "tomato" "brocolli"))
+
+(ros::roseus-add-msgs "jsk_recognition_msgs")
+(ros::roseus "hiro_lunchbox")
+(ros::advertise "/lunchbox_info" jsk_recognition_msgs::Rect 1)
+(ros::advertise "/food_size_info" jsk_recognition_msgs::RectArray 1)
+(ros::rate 10)
+
+(setq pub_box_msg (instance jsk_recognition_msgs::Rect :init))
+(send pub_box_msg :x 1)
+(send pub_box_msg :y 2)
+(send pub_box_msg :width 10)
+(send pub_box_msg :height 20)
+
+(setq pub_food_msg (instance jsk_recognition_msgs::RectArray :init))
+(dotimes (i (length box_list))
+  (setq food_msg (instance jsk_recognition_msgs::Rect :init))
+  (send food_msg :x 0)
+  (send food_msg :y 0)
+  (send food_msg :width (elt (elt box_list i) 0))
+  (send food_msg :height (elt (elt box_list i) 1))
+  (format t "food_msg is ~A~%" food_msg)
+  (send pub_food_msg :rects (append (send pub_food_msg :rects) (list food_msg)))
+  )
+
+
+(while (ros::ok)
+  (ros::publish "/lunchbox_info" pub_box_msg)
+  (ros::publish "/food_size_info" pub_food_msg)
+  (ros::sleep))
