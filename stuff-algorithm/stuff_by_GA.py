@@ -5,15 +5,28 @@ from copy import deepcopy
 import numpy as np
 
 from BL_algorithm import BL_main
-from jsk_recognition_msgs.msg import Rect
-from jsk_recognition_msgs.msg import RectArray
+from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseArray
 from std_msgs.msg import Header
+
+from jsk_recognition_msgs.msg import Rect
+from jsk_recognition_msgs.msg import LabelArray
+from geometry_msgs.msg import PoseArray
 
 """
 x: width, y: height
 """
 class StuffFood():
-
+    """
+    example of input:
+        name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato"]
+        box_list = [[4,2,2], [4,4,4], [4,4,4], [3,3,3], [2,2,3.5], [4,4,4], [4,2,2], [4,4,4], [2,2,3.5], [3,3,3]]
+        box_size = [12,11]
+        like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
+        dislike_list = [["octopus_wiener", "fried_chiken"]]
+    example of output:
+        stuff_pos = [(2.0, 5.0), (2.0, 2.0), (8.0, 2.0), (8.5, 5.5), (5.0, 3.0), (6.0, 9.0), (2.0, 7.0), (2.0, 10.0), (5.0, 1.0), (5.5, 5.5)]
+    """
     def __init__(self, name_list, box_list, box_size, like_list, dislike_list, indivisuals, generation):
         self.indivisuals = indivisuals
         self.generation = generation
@@ -160,31 +173,95 @@ class StuffFood():
         return best_stuff, cannot_stuff
 
 
-def ROSmain():
-    #To Do: subscribe these informations
-    name_list = ["rolled_egg", "fried_chiken", "brocolli", "tomato", "octopus_wiener", "fried_chiken", "rolled_egg", "brocolli", "octopus_wiener", "tomato"]
-    box_list = [[4,2,2], [4,4,4], [4,4,4], [3,3,3], [2,2,3.5], [4,4,4], [4,2,2], [4,4,4], [2,2,3.5], [3,3,3]]
-    box_size = [12,11]
-    #To Do: get these information by talking with HIRO
-    like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
-    dislike_list = [["octopus_wiener", "fried_chiken"]]
+class SubscribeVisualInfo():
+
+    def __init__(self):
+        self.box_list = None
+        self.name_list = None
+        self.box_size = None
+        self.flag1 = True
+        self.flag2 = True
+        self.flag3 = True
+
+    def lunchbox_info_cb(self, msg):
+        self.box_size = [msg.width, msg.height]
+        if self.box_size:
+            self.flag1 = False
+
+    def name_info_cb(self, msg):
+        self.name_list = msg.labels
+        if self.name_list:
+            self.flag2 = False 
+        copy = []
+        for i in range(len(self.name_list)):
+            copy.append(self.name_list[i].name)
+        self.name_list = copy 
+
+    def size_info_cb(self, msg):
+        self.box_list = msg.poses
+        #print(self.box_size)
+        if self.box_list:
+            self.flag3 = False
+        copy = []
+        for i in range(len(self.box_list)):
+            lst = [self.box_list[i].position.x, self.box_list[i].position.y, self.box_list[i].position.z]
+            copy.append(lst)
+        self.box_list = copy    
+            
+    def get_vis_info(self):
+        #To Do: subscribe these informations
+        rospy.init_node("hiro_lunchbox")
+        while self.flag1:
+            rospy.Subscriber("/lunchbox_info", Rect, self.lunchbox_info_cb)
+            rospy.sleep(1.0)
+        print("box_size is ", self.box_size)
+        while self.flag2:
+            rospy.Subscriber("/food_name_info", LabelArray, self.name_info_cb)
+            rospy.sleep(1.0) 
+        print("names are ", self.name_list)
+        while self.flag3:
+            rospy.Subscriber("/food_size_info", PoseArray, self.size_info_cb)
+            rospy.sleep(1.0)      
+        print("food size  ", self.box_size)
+        return self.box_size, self.name_list, self.box_list
+
+
+class TalkWithHiro():
+#To Do: get these information by talking with HIRO
+    def __init__(self):
+        self.like_list = None
+        self.dislike_list = None
+
+    def get_talk_info(self):
+        like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
+        dislike_list = [["octopus_wiener", "fried_chiken"]]
+        return like_list, dislike_list
+
+
+def main():
+    #subscribe info from Coral
+    visual_info = SubscribeVisualInfo()
+    box_size, name_list, box_list = visual_info.get_vis_info()
+    print(box_list)
+    print(name_list)
+    print(box_size)
+    #subscribe info from talking
+    talk_info = TalkWithHiro()
+    like_list, dislike_list = talk_info.get_talk_info()
     #calc stuff pos using GA and BL
-    stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, 12, 1000)
+    stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, 12, 10)#1000)
     best_stuff, _ = stuff.GA_main()
     #publish stuff canter coords and box width and height
-    rospy.init_node("hiro_lunchbox")
-    pub = rospy.Publisher('/stuff_food_pos', RectArray, queue_size = 1)
-    rect_msg = RectArray()
+    pub = rospy.Publisher('/stuff_food_pos', PoseArray, queue_size = 1)
+    pose_msg = PoseArray()
     for i, stuff_pos in enumerate(best_stuff):
-        rect = Rect(
-            x = stuff_pos[0],
-            y = stuff_pos[1],
-            width = box_list[i][0],
-            height = box_list[i][1],
-        )
-        rect_msg.rects.append(rect)
+        pose = Pose()
+        pose.position.x = stuff_pos[0]
+        pose.position.y = stuff_pos[1]
+        pose.position.z = box_list[i][2]
+        pose_msg.poses.append(pose)
     while not rospy.is_shutdown():
-        pub.publish(rect_msg) 
+        pub.publish(pose_msg) 
         rospy.sleep(1.0)
 
-ROSmain()      
+main()
