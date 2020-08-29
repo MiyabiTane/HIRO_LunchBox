@@ -17,16 +17,18 @@ box_list = [[80,40,40], [70,70,80], [70,70,80], [60,60,60], [40,40,70], [80,80,8
 box_size = [180,220]
 like_list = [["octopus_wiener", "octopus_wiener"], ["rolled_egg", "rolled_egg"], ["tomato", "tomato"]]
 dislike_list = [["octopus_wiener", "fried_chiken"]]
+want_to_eat = ["fried_chiken", "tomato"]
 """
 x: width, y: height
 """
 
 class StuffFood():
 
-    def __init__(self, name_list, box_list, box_size, like_list, dislike_list, indivisuals, generation):
+    def __init__(self, name_list, box_list, box_size, like_list, dislike_list, want_to_eat_list, indivisuals, generation):
         self.indivisuals = indivisuals
         self.generation = generation
         self.box_size = box_size
+        self.want_to_eat = want_to_eat_list
         self.name_to_index_dict = {}
         for i, food in enumerate(name_list):
             if food in self.name_to_index_dict:
@@ -59,18 +61,23 @@ class StuffFood():
             for food1, food2 in list:
                 for index_1 in self.name_to_index_dict[food1]:
                     for index_2 in self.name_to_index_dict[food2]:
-                        if stuff_pos[index_1][0] + self.box_dict[index_1][0] == stuff_pos[index_2][0]:
-                            #if stuff_pos[index_1][1] <= stuff_pos[index_2][1] < stuff_pos[index_2][1] + self.box_dict[index_2][1]:
-                            if 0 <= stuff_pos[index_2][1] - stuff_pos[index_1][1] + self.box_dict[index_2][1]/2 <= self.box_dict[index_1][1]:
+                        if not index_1 == index_2: 
+                            if stuff_pos[index_1][0] + self.box_dict[index_1][0] == stuff_pos[index_2][0] or stuff_pos[index_2][0] + self.box_dict[index_2][0] == stuff_pos[index_1][0]:
                                 # | food1 | food2 |
-                                point += 1 if plus_flag else -1
-                        elif stuff_pos[index_1][1] + self.box_dict[index_1][1] == stuff_pos[index_2][1]:
-                            #if stuff_pos[index_1][0] <= stuff_pos[index_2][0] < stuff_pos[index_2][0] + self.box_dict[index_2][0]:
-                            if 0 <= stuff_pos[index_2][0] - stuff_pos[index_1][0] + self.box_dict[index_2][0]/2 <= self.box_dict[index_1][0]:
+                                if min(stuff_pos[index_1][1] + self.box_dict[index_1][1], stuff_pos[index_2][1] + self.box_dict[index_2][1]) - max(stuff_pos[index_1][1], stuff_pos[index_2][1]) >= min(self.box_dict[index_1][1], self.box_dict[index_2][1]) / 2:
+                                    if food1 == food2: #avoid double count
+                                        point = point + 0.5 if plus_flag else point - 0.5
+                                    else:
+                                        point = point + 1 if plus_flag else point - 1
+                            elif stuff_pos[index_1][1] + self.box_dict[index_1][1] == stuff_pos[index_2][1] or stuff_pos[index_2][1] + self.box_dict[index_2][1] == stuff_pos[index_1][1]:
                                 # food1
                                 # -----
                                 # food2
-                                point += 1 if plus_flag else -1
+                                if min(stuff_pos[index_1][0] + self.box_dict[index_1][0], stuff_pos[index_2][0] + self.box_dict[index_2][0]) - max(stuff_pos[index_1][0], stuff_pos[index_2][0]) >= min(self.box_dict[index_1][0], self.box_dict[index_2][0]) / 2:
+                                    if food1 == food2:
+                                        point = point + 0.5 if plus_flag else point - 0.5
+                                    else:
+                                        point = point + 1 if plus_flag else point - 1
             return point
 
         points = []
@@ -85,8 +92,11 @@ class StuffFood():
             for i in range(len(stuff_pos)):
                 if stuff_pos[i][0] + self.box_dict[i][0] > self.box_size[0] or stuff_pos[i][1] + self.box_dict[i][1] > self.box_size[1]:
                     point -= 1
+                    if self.name_list[i] in self.want_to_eat:
+                        point -= 2
             points.append(point)
         #for_choose_parameter
+        #print(points)
         max_point = max(points)
         points = map(lambda x: x-(min(points)), points)
         if float(sum(points)) == 0:
@@ -157,7 +167,7 @@ class StuffFood():
                 #select the one whose point is highest
                 print(self.cand_list)
                 points, max_point = self.evaluate()
-                print("max point is", max_point)
+                print(j, " : max point is", max_point)
                 print(self.cand_list[(np.argmax(points))])
                 best_stuff = BL_main(self.cand_list[(np.argmax(points))], self.box_dict, self.box_size)
                 print(best_stuff)
@@ -168,7 +178,7 @@ class StuffFood():
                         cannot_stuff += [i]
                     else:
                         best_stuff[i] = (best_stuff[i][0] + self.box_dict[i][0]/2, best_stuff[i][1] + self.box_dict[i][1]/2)
-                self.visualize(best_stuff, cannot_stuff, "test3/" + str(j) + ".png")
+                self.visualize(best_stuff, cannot_stuff, "want_to_eat_3/" + str(j) + ".png")
         print(best_stuff)
         return best_stuff, cannot_stuff
 
@@ -193,7 +203,7 @@ class StuffFood():
 
 
 def test():
-    stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, 12, 1001)
+    stuff = StuffFood(name_list, box_list, box_size, like_list, dislike_list, want_to_eat, 12, 1001)
     best_stuff, cannot_stuff = stuff.GA_main()       
 
 
