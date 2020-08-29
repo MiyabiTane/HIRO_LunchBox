@@ -1,5 +1,5 @@
 (setq box_list (list (list 4 2 2) (list 4 4 4) (list 4 4 4) (list 3 3 3) (list 2 2 3.5) (list 4 4 4) (list 4 2 2) (list 4 4 4) (list 2 2 3.5) (list 3 3 3)))
-(setq name_list (list "rolled_egg" "fried_chiken" "brocolli" "tomato" "octopus_wiener" "fried_chiken" "rolled_egg" "brocolli" "octopus_wiener" "tomato"))
+(setq name_list (list "rolled_egg" "fried_chicken" "broccoli" "tomato" "octopus_wiener" "fried_chicken" "rolled_egg" "broccoli" "octopus_wiener" "tomato"))
 
 (ros::roseus-add-msgs "jsk_recognition_msgs")
 (ros::roseus "hiro_lunchbox")
