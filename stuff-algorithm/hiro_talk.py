@@ -3,24 +3,23 @@
 import rospy
 import actionlib
 from speech_recognition_msgs.msg import SpeechRecognitionCandidates
-from sound_play.msg import SoundRequestAction, SoundRequestGoal
+from sound_play.msg import SoundRequest
+from sound_play.libsoundplay import SoundClient
 import random
 
 class TalkWith:
     
     def __init__(self):
         self.cb_flag = False
+        self.voice = 'voice_kal_diphone'
         self.volume = 1.0
-        self.command = 1
-        self.sound = -3
-        self.arg2 = 'ja'
         self.str_candidate = ''
         self.like_list = []
         self.dislike_list = []
         self.want_to_eat = []
         #rospy.init_node('hiro_talk')
-        self.actionlib_part = actionlib.SimpleActionClient('/robotsound_jp', SoundRequestAction)
-        #self.actionlib_part.wait_for_server()
+        self.soundhandle = SoundClient()
+        rospy.sleep(1.0)
 
     def talk_cb(self, msg):  
         #print("talk_cb")
@@ -80,24 +79,18 @@ class TalkWith:
             food_for_judge.append(cand)
         print("food_for_judge : ",food_for_judge)
 
-        speak_msg = SoundRequestGoal()
-        speak_msg.sound_request.volume = self.volume
-        speak_msg.sound_request.command = self.command
-        speak_msg.sound_request.sound = self.sound
-
         for food in food_for_judge:
             f1 = food[0]; f2 = food[1]
-            f1_ = self.convertEtoJ(f1); f2_ = self.convertEtoJ(f2)
-            speak_msg.sound_request.arg = f1_ + "と" + f2_ + "は隣で良いですか？"
-            print(speak_msg.sound_request.arg)
-            speak_msg.sound_request.arg2 = self.arg2
-            self.actionlib_part.send_goal(speak_msg)
-
+            #f1_ = self.convertEtoJ(f1); f2_ = self.convertEtoJ(f2)
+            #s = f1_ + "と" + f2_ + "は隣で良いですか？"
+            s = "Is it good that " + f1.replace('_',' ') + " and " + f2.replace('_',' ') + " are next to each other?"
+            rospy.loginfo('Saying: %s' % s)
+            self.soundhandle.say(s, self.voice, self.volume)
+            
             while True:
                 self.str_candidate = ""
                 self.cb_flag = True
                 while self.cb_flag:
-                    #print(self.cb_flag)
                     self.sub = rospy.Subscriber('/speech_to_text', SpeechRecognitionCandidates, self.talk_cb)
                     rospy.sleep(0.5)
                 if "はい" in self.str_candidate:
@@ -106,15 +99,16 @@ class TalkWith:
                 elif "いいえ" in self.str_candidate:
                     self.dislike_list.append([f1, f2])
                     break
-                speak_msg.sound_request.arg = "すみません、もう一度お願いします。"
-                print(speak_msg.sound_request.arg)
-                speak_msg.sound_request.arg2 = self.arg2
-                self.actionlib_part.send_goal(speak_msg)
+                #s = "すみません、もう一度お願いします。"
+                s = "Could you repeat that please?"
+                rospy.loginfo('Saying: %s' % s)
+                self.soundhandle.say(s, self.voice, self.volume)
         print(self.like_list, self.dislike_list)
 
-        speak_msg.sound_request.arg = "絶対に入れてほしいおかずをひとつずつ教えてください"
-        print(speak_msg.sound_request.arg)
-        self.actionlib_part.send_goal(speak_msg)
+        #s = "絶対に入れてほしいおかずをひとつずつ教えてください"
+        s = "Please tell me one side dish you want to eat at a time."
+        rospy.loginfo('Saying: %s' % s)
+        self.soundhandle.say(s, self.voice, self.volume)
         while True:
             self.cb_flag = True
             self.str_candidate = ""
@@ -124,19 +118,41 @@ class TalkWith:
                 rospy.sleep(0.5)
             if  self.convertJtoE(self.str_candidate) in name_list:
                 self.want_to_eat.append(self.convertJtoE(self.str_candidate))
-                speak_msg.sound_request.arg = self.str_candidate + "ですね、分かりました。他にはありますか？"
+                #s = self.str_candidate + "ですね、分かりました。他にはありますか？"
+                s = "You want to eat " + self.convertJtoE(self.str_candidate).replace('_',' ') + " right?"
+                rospy.loginfo('Saying: %s' % s)
+                self.soundhandle.say(s, self.voice, self.volume)
+                self.cb_flag = True
+                self.str_candidate = ""
+                while self.cb_flag:
+                    self.sub = rospy.Subscriber('/speech_to_text', SpeechRecognitionCandidates, self.talk_cb)
+                    rospy.sleep(0.5)
+                if "はい" in self.str_candidate:
+                    s = "OK. Is there anything else?"
+                    rospy.loginfo('Saying: %s' % s)
+                    self.soundhandle.say(s, self.voice, self.volume)
+                elif "いいえ" in self.str_candidate:
+                    s = "Could you repeat the food's name please?"
+                    rospy.loginfo('Saying: %s' % s)
+                    self.soundhandle.say(s, self.voice, self.volume)
+                else:
+                    s = "Could you repeat that please?"
+                    rospy.loginfo('Saying: %s' % s)
+                    self.soundhandle.say(s, self.voice, self.volume)
             elif "ない" in self.str_candidate or "ありません" in self.str_candidate or "いいえ"in self.str_candidate:
-                speak_msg.sound_request.arg = "了解しました。"
-                print(speak_msg.sound_request.arg)
-                self.actionlib_part.send_goal(speak_msg)
+                #s = "了解しました。"
+                s = "OK, I understand. Thank you."
+                rospy.loginfo('Saying: %s' % s)
+                self.soundhandle.say(s, self.voice, self.volume)
+                self.sub.unregister()
                 break
             else:
-                speak_msg.sound_request.arg = "すみません、それを用意することはできません、もう一度お願いします。"
-            print(speak_msg.sound_request.arg)
-            self.actionlib_part.send_goal(speak_msg)
+                #s = "すみません、それを用意することはできません、もう一度お願いします。"
+                s = "I am sorry, I cannot prepare it. Is there anything else?"
+                rospy.loginfo('Saying: %s' % s)
+                self.soundhandle.say(s, self.voice, self.volume)
         print(self.like_list, self.dislike_list, self.want_to_eat)
         return self.like_list, self.dislike_list, self.want_to_eat
-
 
 """
 name_list = ["rolled_egg", "fried_chicken", "broccoli", "tomato", "octopus_wiener", "fried_chicken", "rolled_egg", "broccoli", "octopus_wiener", "tomato"]
