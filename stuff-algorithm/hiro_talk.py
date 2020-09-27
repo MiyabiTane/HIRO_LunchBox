@@ -6,6 +6,57 @@ from speech_recognition_msgs.msg import SpeechRecognitionCandidates
 from sound_play.msg import SoundRequest
 from sound_play.libsoundplay import SoundClient
 import random
+import openpyxl
+
+class RememberInfo:
+    # 今はあらかじめ書いてあるおかずだけ
+    # like : 1, dislike : 0
+    # U : Unknown, N : None(重複)
+    def __init__(self, wb_name):
+        self.wb_name = wb_name
+        self.like_list = []
+        self.dislike_list = []
+        self.want_to_eat = []
+        self.wb = openpyxl.load_workbook(wb_name)
+        self.sheet = self.wb['Sheet1']
+        self.values = list(self.sheet.values)
+        self.foods = [str(f) for f in self.values[0][1:]]
+        self.N = len(self.foods)
+        #print(self.values)
+        #print(self.foods)
+
+    def get_past_info(self):
+        for i in range(1, self.N+1):
+            for j in range(i, self.N+1):
+                if self.values[i][j] == 1:
+                    self.like_list.append([str(self.foods[i-1]), str(self.foods[j-1])])
+                elif self.values[i][j] == 0:
+                    self.dislike_list.append([str(self.foods[i-1]), str(self.foods[j-1])])
+        
+        for i,tf in enumerate(self.values[self.N+1][1:]):
+            if str(tf) == 'T':
+                self.want_to_eat.append(self.foods[i])
+        return self.like_list, self.dislike_list, self.want_to_eat
+
+    def update_info(self, new_like_list, new_dislike_list, new_want_to_eat):
+        for i in range(len(new_like_list)):
+            food1 = new_like_list[i][0]
+            food2 = new_like_list[i][1]
+            index1 = self.foods.index(food1) + 2
+            index2 = self.foods.index(food2) + 2
+            self.sheet.cell(row=min(index1,index2), column=max(index1,index2), value = 1)
+       
+        for i in range(len(new_dislike_list)):
+            food1 = new_dislike_list[i][0]
+            food2 = new_dislike_list[i][1]
+            index1 = self.foods.index(food1) + 2
+            index2 = self.foods.index(food2) + 2
+            self.sheet.cell(row = min(index1, index2), column = max(index1, index2), value = 0)
+
+        for i,food in enumerate(new_want_to_eat):
+            index = self.foods.index(food)+2
+            self.sheet.cell(row = self.N+2, column = index, value = 'T')
+        self.wb.save(self.wb_name)
 
 class TalkWith:
     
@@ -151,11 +202,33 @@ class TalkWith:
                 s = "I am sorry, I cannot prepare it. Is there anything else?"
                 rospy.loginfo('Saying: %s' % s)
                 self.soundhandle.say(s, self.voice, self.volume)
-        print(self.like_list, self.dislike_list, self.want_to_eat)
-        return self.like_list, self.dislike_list, self.want_to_eat
+        
+        # 過去の記憶を使う
+        # To Do 重複質問をなくす
+        rem = RememberInfo("owner_info.xlsx")
+        rem.update_info(self.like_list, self.dislike_list, self.want_to_eat)
+        rem = RememberInfo("owner_info.xlsx")
+        new_like, new_dislike, new_want = rem.get_past_info()
+        print(new_like)
+        print(new_dislike)
+        print(new_want)
+        return new_like, new_dislike, new_want
 
 """
+#talk
 name_list = ["rolled_egg", "fried_chicken", "broccoli", "tomato", "octopus_wiener", "fried_chicken", "rolled_egg", "broccoli", "octopus_wiener", "tomato"]
 hiro_talk = TalkWith()
 hiro_talk.main_before_stuff(name_list)
+"""
+"""
+#xlsx
+new_like = [["rolled_egg", "rolled_egg"], ["tomato", "fried_chicken"]]
+new_dislike = [["octopus_wiener", "fried_chicken"], ["rolled_egg","fried_chicken"]]
+new_want = ["tomato", "rolled_egg"]
+rem = RememberInfo("test.xlsx")
+list1, list2, list3 = rem.get_past_info()
+print("like : ",list1)
+print("dislike : ",list2)
+print("want : ",list3)
+rem.update_info(new_like, new_dislike, new_want)
 """
