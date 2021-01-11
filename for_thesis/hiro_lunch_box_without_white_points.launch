@@ -1,0 +1,307 @@
+<launch>
+  <arg name="cloud_machine" default="localhost"
+       doc="point cloud processor machine" />
+  
+  <arg name="gazebo" default="true" />
+  <arg name="launch_rviz" default="true" />
+  <arg name="use_rosbag" default="false" />
+
+  <!-- Spawn gazebo robot model -->
+  <group if="$(arg use_rosbag)">
+    <!--
+    <arg name="model" default="$(find hironx_tutorial)/models/HIRONXJSK.gazebo.xacro" />
+    <param name="robot_description" command="$(find xacro)/xacro '$(arg model)'" />
+    -->
+    <param name="robot_description" textfile="$(find hrpsys_ros_bridge_tutorials)/models/HIRONXJSK_SENSORS.urdf" />
+  </group>
+ 
+  <!-- add for screenpoint -->
+  <arg name="inpoints" default="/head_camera/depth_registered/points"/>
+  <arg name="image" default="/head_camera/rgb"/>
+  <arg name="image_type" default="image_rect_color"/>
+  <arg name="USE_SYNC" default="false"/>
+  <arg name="PUBLISH_POINTS" default="false"/>
+  <arg name="manager" default="hiro_lunch_box_nodelet_manager"/>
+
+  <arg name="camera_frame_id" default="head_camera_rgb_optical_frame"/>
+  
+  <!-- nodelet manager is executed by tabletop_object_detector.launch -->
+  <!--
+  <node name="$(arg manager)" pkg="nodelet" type="nodelet" args="manager"
+  machine="$(arg cloud_machine)" output="screen" />
+  -->
+  
+  <group if="$(arg gazebo)">
+    <arg name="paused" default="false" />
+    <!-- Launch Gazebo -->
+    <include file="$(find hironx_tutorial)/launch/hironxjsk_gazebo_world.launch">
+      <arg name="world_file" value="$(find hironx_tutorial)/worlds/hiro_lunch_box.world" />
+      <arg name="paused" value="$(arg paused)" />
+    </include>
+  </group>
+
+  
+  <!-- filter white dish -->
+  <arg name="INPUT_IMAGE" value="/head_camera/rgb/image_rect_color" />
+  <include file="$(find opencv_apps)/launch/hls_color_filter.launch">
+    <arg name="image" value="$(arg INPUT_IMAGE)" />
+    <arg name="h_limit_max" value="50" />
+    <arg name="h_limit_min" value="0" />
+    <arg name="s_limit_max" value="10" />
+    <arg name="s_limit_min" value="0" />
+    <arg name="l_limit_max" value="256" />
+    <arg name="l_limit_min" value="255" />
+    <arg name="debug_view" value="false" />
+  </include>
+
+  <arg name="MASK_IMAGE" value="/hls_color_filter/image" />
+  <node name="apply_mask_image"
+        pkg="nodelet" type="nodelet" respawn="true"
+        args="standalone jsk_perception/ApplyMaskImage $(arg manager)">
+    <remap from="~input" to="$(arg INPUT_IMAGE)" />
+    <remap from="~input/mask" to="$(arg MASK_IMAGE)" />
+    <rosparam>
+      approximate_sync: true
+      negative: true
+      clip: false
+    </rosparam>
+  </node>
+  
+  <!-- mask -> point indices -> mask -->
+  <!--
+  <node name="sample_manager"
+        pkg="nodelet" type="nodelet"
+        args="manager"/>
+  -->
+  
+  <arg name="REVERSE_MASK_IMAGE" value="/apply_mask_image/output/mask"/>
+  <node name="mask_image_to_point_indices"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl_utils/MaskImageToPointIndices $(arg manager)">
+    <remap from="~input" to="$(arg REVERSE_MASK_IMAGE)" />
+    <rosparam>
+      use_multi_channels: false
+    </rosparam>
+  </node>
+  
+  <!-- make masked points -->
+  <arg name="INPUT_INDICES" value="/mask_image_to_point_indices/output" />
+  <node name="extract_masked_indices"
+        pkg="nodelet" type="nodelet" respawn="true"
+        args="load jsk_pcl/ExtractIndices $(arg manager)">
+    <remap from="~input" to="$(arg inpoints)" />
+    <remap from="~indices" to="$(arg INPUT_INDICES)" />
+    <rosparam>
+      approximate_sync: true
+      keep_organized: true
+    </rosparam>
+  </node>
+
+
+  <!-- attention_clipper -->
+  <arg name="INPUT_CLOUD" value="/head_camera/depth_registered/points" />
+
+  <node name="attention_clipper"
+        pkg="nodelet" type="nodelet" respawn="true"
+        args="load jsk_pcl/AttentionClipper $(arg manager)">
+    <remap from="~input/points" to="$(arg INPUT_CLOUD)" />
+    <rosparam>
+      initial_pos: [0.5, 0, 0]
+      initial_rot: [0, 0, 0]
+      dimension_x: 0.8
+      dimension_y: 1.0
+      dimension_z: 0.3
+      frame_id: WAIST
+    </rosparam >
+  </node>
+
+  <node name="extract_indices"
+        pkg="nodelet" type="nodelet" respawn="true"
+        args="load jsk_pcl/ExtractIndices $(arg manager)">
+    <remap from="~input" to="$(arg INPUT_CLOUD)" />
+    <remap from="~indices" to="attention_clipper/output/point_indices" />
+    <rosparam>
+      keep_organized: true
+    </rosparam>
+  </node>
+
+
+  <!-- attention_clipper for ssd -->
+  <arg name="MASKED_POINTS" value="/extract_masked_indices/output" />
+  <node name="attention_clipper_for_ssd"
+        pkg="nodelet" type="nodelet" respawn="true"
+        args="load jsk_pcl/AttentionClipper $(arg manager)">
+    <remap from="~input/points" to="$(arg MASKED_POINTS)" />
+    <rosparam>
+      initial_pos: [0.5, 0, 0]
+      initial_rot: [0, 0, 0]
+      dimension_x: 0.8
+      dimension_y: 1.0
+      dimension_z: 0.3
+      frame_id: WAIST
+    </rosparam >
+  </node>
+
+  <node name="extract_indices_for_ssd"
+        pkg="nodelet" type="nodelet" respawn="true"
+        args="load jsk_pcl/ExtractIndices $(arg manager)">
+    <remap from="~input" to="$(arg MASKED_POINTS)" />
+    <remap from="~indices" to="attention_clipper_for_ssd/output/point_indices" />
+    <rosparam>
+      keep_organized: true
+    </rosparam>
+  </node>
+  
+  
+  <!-- Launch recognition pipeline -->
+  <include file="$(find jsk_pcl_ros)/sample/tabletop_object_detector.launch">
+    <!-- arg name="input" value="/head_camera/depth_registered/points" / -->
+    <arg name="input" value="extract_indices/output" />
+    <arg name="sensor_frame" value="$(arg camera_frame_id)" />
+    <arg name="manager" value="$(arg manager)" />
+    <arg name="machine" value="$(arg cloud_machine)" />
+    <!-- <arg name="launch_manager" value="false" /> -->  <!-- This prevents multi_plane_estimate from running -->
+    <arg name="launch_manager" value="true" />
+    <arg name="launch_openni" value="false" />
+    <arg name="launch_tracking" value="false" />
+    <arg name="launch_rviz" value="false" />
+    <arg name="publish_tf" value="true" />
+  </include>
+
+  <!-- ssd -->
+  <node name="multi_plane_estimate_ssd" pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/OrganizedMultiPlaneSegmentation $(arg manager)"
+        output="screen" respawn="true"
+        machine="$(arg cloud_machine)">
+    <remap from="~input" to="extract_indices/output" />
+    <rosparam>
+      max_curvature: 0.01
+      estimate_normal: true
+      ransac_refine_outlier_distance_threshold: 0.001
+    </rosparam>
+  </node>
+  
+  <node name="polygon_magnifier_ssd" pkg="nodelet" type="nodelet"
+        args="load jsk_pcl_utils/PolygonMagnifier $(arg manager)"
+        output="screen" respawn="true"
+        machine="$(arg cloud_machine)">
+    <remap from="~input" to="multi_plane_estimate_ssd/output_refined_polygon" />
+  </node>
+
+  <node name="plane_extraction_ssd" pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/MultiPlaneExtraction $(arg manager)"
+        output="screen" respawn="true"
+        machine="$(arg cloud_machine)">
+    <remap from="~input" to="extract_indices_for_ssd/output" />
+    <remap from="~indices" to="multi_plane_estimate_ssd/output_refined" />
+    <remap from="~input_polygons" to="multi_plane_estimate_ssd/output_refined_polygon" />
+    <remap from="~input_coefficients" to="multi_plane_estimate_ssd/output_refined_coefficients" />
+    <rosparam subst_value="true">
+      use_async: true
+      max_queue_size: 1000
+      use_sensor_frame: true
+      keep_organized: true
+      sensor_frame: $(arg camera_frame_id)
+      min_height: 0
+    </rosparam>
+  </node>
+
+  <node name="rects_to_cpi_ssd"
+        pkg="jsk_recognition_utils" type="rect_array_to_cluster_point_indices.py"
+        output="screen" respawn="true">
+    <remap from="~input" to="/edgetpu_object_detector/output/rects"/>
+    <remap from="~input/info" to="$(arg image)/camera_info"/>
+    <rosparam>
+      approximate_sync: false
+      use_info: true
+    </rosparam>
+  </node>
+
+  <node name="segmentation_decomposer_ssd" pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/ClusterPointIndicesDecomposer $(arg manager)"
+        output="screen" respawn="true"
+        machine="$(arg cloud_machine)">
+    <remap from="~input" to="plane_extraction_ssd/output" />
+    <remap from="~target" to="rects_to_cpi_ssd/output" />
+    <rosparam subst_value="true">
+      align_boxes: true
+      align_boxes_with_plane: false
+      target_frame_id: WAIST
+      approximate_sync: true
+      queue_size: 1000
+      min_size: -1
+      use_pca: true
+    </rosparam>
+  </node>
+
+  <!-- 3Dpoint->2Dpoint -->
+  <node name="xyz_to_screenpoint"
+        pkg="hironx_tutorial" type="xyz_to_screenpoint.py"
+        output="screen" respawn="true">
+    <remap from="~input/camera_info" to="/head_camera/rgb/camera_info"/>
+  </node>
+
+  <!-- get food rects by image procssing -->
+  <node name="get_food_size"
+        pkg="hironx_tutorial" type="get_food_size.py"
+        output="screen" respawn="true">
+  </node>
+
+  <!-- get placed position of food by image processing -->
+  <node name="get_placed_pos"
+	pkg="hironx_tutorial" type="get_placed_pos.py"
+	output="screen" respawn="true">
+  </node>
+
+  <!-- approximate sync for euslisp node -->
+  <node name="edgetpu_boxes_synchronizer" pkg="jsk_topic_tools" type="synchronize_republish.py"
+        output="screen" respawn="true">
+    <rosparam subst_value="true">
+      topics:
+      - /edgetpu_object_detector/output/class
+      - segmentation_decomposer_ssd/boxes
+      - /edgetpu_object_detector/output/rects
+      approximate_sync: true
+      slop: 0.01
+      queue_size: 1000
+    </rosparam>
+  </node>
+
+  <!-- to syncronize -->
+  <!--
+  <node name="throttle_segmentation_sync" pkg="nodelet" type="nodelet"
+        args="load jsk_topic_tools/LightweightThrottle $(arg manager)"
+        output="screen"
+        machine="$(arg cloud_machine)">
+    <remap from="~input" to="edgetpu_object_detector/output/class" />
+    <remap from="~output" to="/edgetpu_object_detector/output/class_throttle" />
+    <rosparam>
+     update_rate: 0.2
+    </rosparam>
+  </node>
+  -->
+
+  <!-- 2d food coords to 3d coords -->
+  <node name="pointcloud_screenpoint_nodelet" pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/PointcloudScreenpoint $(arg manager)"
+        output="screen" clear_params="true" respawn="true"
+        machine="$(arg cloud_machine)">
+    <remap from="~points" to="$(arg MASKED_POINTS)" />
+    <remap from="~point" to="$(arg image)/$(arg image_type)/screenpoint" />
+    <rosparam>
+      queue_size: 10
+      crop_size: 10
+      search_size: 16
+    </rosparam>
+    <param name="use_sync" value="$(arg USE_SYNC)" />
+  </node>
+
+  <!-- Visualization -->
+  <group if="$(arg launch_rviz)">
+    <node name="rviz"
+          pkg="rviz" type="rviz"
+          args="-d $(find hironx_tutorial)/config/hiro_lunch_box.rviz">
+    </node>
+  </group>
+
+</launch>
