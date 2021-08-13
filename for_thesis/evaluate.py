@@ -131,22 +131,19 @@ def evaluate(visualize=True):
     cv2.imwrite("img/output_ev.jpg", img)
 
 
-red_to_white()
-evaluate()
+def check_lbox_size():
+    img = cv2.imread("img/output_0.png")
+    cur_img = cv2.line(img, (0, 300), (639, 300), (255, 0, 0))
+    cv2.imwrite("img/cur2.png", cur_img)
+    print("左から３点クリック")
+    get_cpos = GetClickedPos()
+    get_cpos.get_position("img/cur2.png")
+    p1, p2, p3 = get_cpos.keep_pos
+    ans = (p3[0] - p2[0]) * 170/ (p3[0] - p1[0])
+    print("おかずを詰める部分の横幅" + str(ans) + "mm")
+
+# red_to_white()
+# evaluate()
+check_lbox_size()
 
 # https://learnopencv.com/filling-holes-in-an-image-using-opencv-python-c/
-
-"""
-def get_lbox_point():
-    img = cv2.imread("img/output_0.png")
-    bw_img = np.zeros((480, 640, 3))
-    img_array = img.astype(np.float)
-    green_line = np.where((img_array == [0, 255, 0]).all(axis=2))
-    bw_img[green_line] = [255, 255, 255]
-    print(bw_img.shape)
-    gray = cv2.cvtColor(bw_img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
-    gray = np.float32(gray)
-    dst = cv2.cornerHarris(gray,2,3,0.04)
-    bw_img[dst>0.01*dst.max()] = [0,0,255]
-    cv2.imwrite("img/point.png", bw_img)
-"""
